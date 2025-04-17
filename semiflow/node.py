@@ -1,5 +1,5 @@
 class Node:
-    def __init__():
+    def __init__(self):
         print("Init node")
 
     def hello():
