@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling >= 1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "semiflow"
+version = "0.0.1"
+authors = [
+  { name="Pascal D. Müller", email="pamuelle@ethz.ch" },
+]
+description = "Torch based deel learning framework implementing semiring backpropagation."
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/pascal-mueller/semiflow"
+Issues = "https://github.com/pascal-mueller/semiflow/issues"

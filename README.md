@@ -1,15 +1,15 @@
 Torch based deep learning framework implementing semiring backpropagation
 
 It uses PyTorch for elemental operations but implements its own computational
-graph and backpropagation.
+graph and (semiring) backpropagation.
 
-# Run
-- `pip install -r requirements.txt`
+# Setup
+Clone this repo and do:
+
+- `pip install -m venv .venv`
 - `source .venv/bin/activate`
+- `pip install -r requirements.txt`
+- `pip install -e .`
 
-
-# Computational Graph
-- How do I build the computational graph?
-
-# Semiring-Backpropagation
-- How do I write the semiring backpropagation?
+This creates an editable install of the package. You can now use it inside the
+`.venv` virtual enfironment by using `from semiflow import <module>`.
