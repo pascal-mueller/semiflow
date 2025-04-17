@@ -1,3 +1,10 @@
 from semiflow import Node
 
-Node.hello()
+x = Node([1, 2, 3])
+y = Node([1, 2, 3])
+
+# Works
+print(x + y)
+
+# Fails
+# print(x + 2)
