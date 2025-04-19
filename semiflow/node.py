@@ -1,13 +1,10 @@
 from __future__ import annotations
-from typing import Optional, List, Callable, TYPE_CHECKING
+from typing import Optional, List
 
 import torch
 
 from .functions import add_backward, sub_backward, mul_backward
-
-# Include guard for type checking
-if TYPE_CHECKING:
-    from .gradFunction import GradFunction
+from .gradFunction import GradFunction
 
 
 class Node:

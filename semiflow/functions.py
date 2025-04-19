@@ -1,6 +1,3 @@
-from .gradFunction import GradFunction
-
-
 def add_backward(grad_output, a, b):
     # Local derivatives: df/da = 1, df/db = 1
     grad_a = grad_output * 1.0

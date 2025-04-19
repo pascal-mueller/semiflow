@@ -1,5 +1,8 @@
-from typing import Callable, List
-from .node import Node
+from __future__ import annotations
+from typing import Callable, List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .node import Node  # Avoid circular import issues
 
 
 class GradFunction:
