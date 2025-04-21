@@ -13,3 +13,6 @@ class GradFunction:
     ):
         self.backward: Callable = backward_fn
         self.input_nodes: List[Node] = input_nodes
+
+    def __call__(self, *args, **kwargs):
+        return self.backward(*args, **kwargs)
