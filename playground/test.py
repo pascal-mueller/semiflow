@@ -1,15 +1,19 @@
 from semiflow import Node
 
-a = Node([1.1], name="a")
-b = Node([2.4], name="b")
-c = Node([3.8], name="c")
 
-h1 = a + b  # 1.1 + 2.4 = 3.5
-h2 = b + c  # 2.4 + 3.8 = 6.2
-L = h1 + h2  # 3.5 + 6.2 = 9.7
+# y = w * x => 4 = w * 2 => w = 2
+w = Node([0.1], name="w")
+x = Node([2.0], name="x")
+y = Node([4.0], name="y")
 
-L.backward()
 
-print("a.grad =", a.grads)  # 1
-print("b.grad =", b.grads)  # 2
-print("c.grad =", c.grads)  # 1
+lr = 0.1
+for epoch in range(10):
+    y_pred = w * x
+    L = (y_pred - y) * (y_pred - y)
+    L.backward()
+    w.data = w.data - lr * w.grads
+    print(
+        f"epoch {epoch}: w.data = {w.data[0]:.4f}, w.grads = {w.grads[0]:.4f} loss = {L.data[0]:.4f}"
+    )
+    L.zero_grad()

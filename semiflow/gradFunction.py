@@ -12,6 +12,7 @@ class GradFunction:
         input_nodes: List[Node],
     ):
         self.backward: Callable = backward_fn
+        # TODO: I think this is not needed?
         self.input_nodes: List[Node] = input_nodes
 
     def __call__(self, *args, **kwargs):
