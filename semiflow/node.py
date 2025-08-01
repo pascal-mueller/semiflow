@@ -1,7 +1,8 @@
 from __future__ import annotations
 from typing import Optional, List
 
-import torch
+import jax
+import jax.numpy as jnp
 
 from .functions import add_backward, sub_backward, mul_backward
 from .gradFunction import GradFunction
@@ -10,26 +11,22 @@ from .gradFunction import GradFunction
 class Node:
     def __init__(
         self,
-        data: torch.Tensor,
+        data: jax.Array,
         name: Optional[str] = None,
         operation: Optional[str] = None,  # Still needed?
         parents: Optional[List[Node]] = None,
-        dtype: Optional[torch.dtype] = None,
-        device: Optional[torch.device] = None,
-        requires_grad: bool = False,
-        pin_memory: bool = False,  # do I need this?
+        dtype: Optional[jax.dtypes.DType] = None,
+        device: Optional[jax.Device] = None,
     ) -> None:
-        self.data: torch.tensor = torch.as_tensor(data, dtype=dtype, device=device)
+        self.data: jax.Array = jax.device_put(jnp.array(data), device=device)
         self.operation: Optional[str] = operation
         self.name: str = name or ""
         self.parents: List[Node] = parents or []
-        self.grads: Optional[torch.Tensor] = None
-        self.grad_fn: Optional[GradFunction] = None
-        self.requires_grad: bool = requires_grad
-        self.pin_memory: bool = pin_memory  # do I need this?
+        self.grads: jax.Array | None = None
+        self.grad_fn: GradFunction | None = None
 
     def __repr__(self) -> str:
-        return f"{self.name} - {str(self.data)}"
+        return f"Node: {self.name} Data: {str(self.data)}"
 
     def zero_grad(self) -> None:
         # STEP 1: topologically sort the graph
@@ -67,7 +64,7 @@ class Node:
                 f"Unsupported type for addition with Node. Can't add {type(other_node)} to Node."
             )
 
-        data: torch.Tensor = self.data + other_node.data
+        data: jax.Array = self.data + other_node.data
 
         result = Node(
             data=data,
@@ -75,8 +72,6 @@ class Node:
             parents=[self, other_node],
             dtype=data.dtype,
             device=data.device,
-            requires_grad=self.requires_grad or other_node.requires_grad,
-            pin_memory=data.pin_memory,
         )
 
         result.grad_fn = GradFunction(
@@ -87,15 +82,15 @@ class Node:
         return result
 
     def __sub__(self, other_node) -> Node:
-        if not isinstance(other_node, (int, float, torch.Tensor, Node)):
+        if not isinstance(other_node, (int, float, jax.Array, Node)):
             raise TypeError(
                 f"Unsupported type for addition with Node. Can't subtract {type(other_node)} to Node."
             )
 
-        data: torch.Tensor = torch.empty_like(self.data)
+        data: jax.Array = jnp.empty_like(self.data)
         if isinstance(other_node, Node):
             data = self.data - other_node.data
-        elif isinstance(other_node, (int, float, torch.Tensor)):
+        elif isinstance(other_node, (int, float, jax.Array)):
             data = self.data - other_node
 
         result = Node(
@@ -104,8 +99,6 @@ class Node:
             parents=[self, other_node],
             dtype=data.dtype,
             device=data.device,
-            requires_grad=self.requires_grad or other_node.requires_grad,
-            pin_memory=data.pin_memory,
         )
 
         result.grad_fn = GradFunction(
@@ -116,15 +109,15 @@ class Node:
         return result
 
     def __mul__(self, other_node) -> Node:
-        if not isinstance(other_node, (int, float, torch.Tensor, Node)):
+        if not isinstance(other_node, (int, float, jax.Array, Node)):
             raise TypeError(
                 f"Unsupported type for addition with Node. Can't multiply {type(other_node)} with Node."
             )
 
-        data: torch.Tensor = torch.empty_like(self.data)
+        data: jax.Array = jnp.empty_like(self.data)
         if isinstance(other_node, Node):
             data = self.data * other_node.data
-        elif isinstance(other_node, (int, float, torch.Tensor)):
+        elif isinstance(other_node, (int, float, jax.Array)):
             data = self.data * other_node
 
         result = Node(
@@ -133,8 +126,6 @@ class Node:
             parents=[self, other_node],
             dtype=data.dtype,
             device=data.device,
-            requires_grad=self.requires_grad or other_node.requires_grad,
-            pin_memory=data.pin_memory,
         )
 
         result.grad_fn = GradFunction(
@@ -145,15 +136,15 @@ class Node:
         return result
 
     def __rmul__(self, other_node) -> Node:
-        if not isinstance(other_node, (int, float, torch.Tensor, Node)):
+        if not isinstance(other_node, (int, float, jax.Array, Node)):
             raise TypeError(
                 f"Unsupported type for addition with Node. Can't multiply {type(other_node)} with Node."
             )
 
-        data: torch.Tensor = torch.empty_like(self.data)
+        data: jax.Array = jnp.empty_like(self.data)
         if isinstance(other_node, Node):
             data = self.data * other_node.data
-        elif isinstance(other_node, (int, float, torch.Tensor)):
+        elif isinstance(other_node, (int, float, jax.Array)):
             data = self.data * other_node
 
         result = Node(
@@ -162,8 +153,6 @@ class Node:
             parents=[self, other_node],
             dtype=data.dtype,
             device=data.device,
-            requires_grad=self.requires_grad or other_node.requires_grad,
-            pin_memory=data.pin_memory,
         )
 
         result.grad_fn = GradFunction(
@@ -209,9 +198,9 @@ class Node:
 
         # Step 2: Backpropagation
         # dL/dL = 1 - preserving shape
-        self.grads = torch.ones_like(self.data)
-
+        self.grads = jnp.ones_like(self.data)
         for node in reversed(graph_topo):
+            print("step")
             # grad_fn is only set for nodes that are a result of an opeartion
             # and e.g. not for the input nodes.
             if node.grad_fn is None:  #  or node.grads is None: <- when use this?
@@ -219,12 +208,14 @@ class Node:
 
             # get local gradients
             # TODO: Make this flexible for arbitrary grad_fn signatures
-            out_grads = node.grad_fn(node.grads, *node.parents)
+            out_grads: jax.Array = node.grad_fn(node.grads, *node.parents)
 
             for parent, grad in zip(node.parents, out_grads):
                 # Initially parent.grads is None.
                 if parent.grads is None:
-                    parent.grads = grad.data.clone()
+                    print(" > if", type(grad))
+                    parent.grads = grad.clone()
                 # Chain rule implies accumulation of gradients.
                 else:
-                    parent.grads = parent.grads + grad.data
+                    print(" > else", type(grad))
+                    parent.grads = parent.grads + grad

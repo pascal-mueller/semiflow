@@ -8,7 +8,7 @@ version = "0.0.1"
 authors = [
   { name="Pascal D. Müller", email="pamuelle@ethz.ch" },
 ]
-description = "Torch based deel learning framework implementing semiring backpropagation."
+description = "JAX based deel learning framework implementing semiring backpropagation."
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [

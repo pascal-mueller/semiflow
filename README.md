@@ -1,6 +1,6 @@
-Torch based deep learning framework implementing semiring backpropagation
+JAX based deep learning framework implementing semiring backpropagation
 
-It uses PyTorch for elemental operations but implements its own computational
+It uses JAX for elemental operations but implements its own computational
 graph and (semiring) backpropagation.
 
 # Setup

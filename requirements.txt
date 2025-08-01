@@ -1,12 +1,30 @@
+certifi==2025.7.14
+charset-normalizer==3.4.2
 filelock==3.18.0
 fsspec==2025.3.2
+hf-xet==1.1.5
+huggingface-hub==0.34.3
+idna==3.10
+jax==0.7.0
+jaxlib==0.7.0
 Jinja2==3.1.6
 MarkupSafe==3.0.2
+ml_dtypes==0.5.3
 mpmath==1.3.0
 networkx==3.4.2
 numpy==2.2.4
--e git+ssh://git@github.com/pascal-mueller/semiflow.git@f49949241cf082fdf0dc6bb22a2151271c1cd738#egg=semiflow
+opt_einsum==3.4.0
+packaging==25.0
+PyYAML==6.0.2
+regex==2024.11.6
+requests==2.32.4
+safetensors==0.5.3
+scipy==1.16.1
+-e git+ssh://git@github.com/pascal-mueller/semiflow.git@de0c08318d90df196c206811d0fc26d59626e967#egg=semiflow
 setuptools==78.1.0
 sympy==1.13.1
+tokenizers==0.21.4
 torch==2.6.0
+tqdm==4.67.1
 typing_extensions==4.13.2
+urllib3==2.5.0
