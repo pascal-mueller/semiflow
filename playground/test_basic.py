@@ -6,7 +6,7 @@ from semiflow import Node
 # w = 2 <-- wanna find this
 x = Node([2.0], name="x")
 y = Node([4.0], name="y")
-w = Node([0.1], name="w")  # initial guess
+w = Node([0.1], name="w", requires_grad=True)  # initial guess
 
 # Goal: turn w into 2.0
 lr = 0.1
