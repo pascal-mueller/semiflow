@@ -61,11 +61,22 @@ class Node:
         for node in graph_topo:
             node.grads = None
 
+    @property
+    def T(self) -> jax.Array:
+        """Return the transposed JAX array"""
+        return self.data.T
+
     def __add__(self, other_node) -> Node:
-        if not isinstance(other_node, Node):
+        if not isinstance(other_node, (int, float, jax.Array, Node)):
             raise TypeError(
                 f"Unsupported type for addition with Node. Can't add {type(other_node)} to Node."
             )
+
+        if isinstance(other_node, jax.Array):
+            other_node = Node(other_node)
+
+        if isinstance(other_node, (int, float)):
+            other_node = Node(jnp.array(other_node))
 
         data: jax.Array = self.data + other_node.data
 
@@ -83,6 +94,9 @@ class Node:
         )
 
         return result
+
+    def __radd__(self, other_node) -> Node:
+        return self.__add__(other_node)
 
     def __sub__(self, other_node) -> Node:
         if not isinstance(other_node, (int, float, jax.Array, Node)):
