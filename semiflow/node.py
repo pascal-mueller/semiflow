@@ -5,8 +5,20 @@ import jax
 import jax.numpy as jnp
 from jax.typing import DTypeLike
 
-from .functions import add_backward, sub_backward, mul_backward
+from .functions import (
+    add_backward,
+    sub_backward,
+    mul_backward,
+    T_backward,
+    transpose_backward,
+    div_backward,
+    matmul_backward,
+    reshape_backward,
+    mean_backward,
+    std_backward,
+)
 from .gradFunction import GradFunction
+from semiflow.nn.activation.softmax import softmax
 
 
 class Node:
@@ -62,9 +74,117 @@ class Node:
             node.grads = None
 
     @property
-    def T(self) -> jax.Array:
+    def T(self) -> Node:
         """Return the transposed JAX array"""
-        return self.data.T
+        result = Node(
+            data=self.data.T,
+            name=f"{self.name}.T" if self.name else None,
+            parents=[self],
+            requires_grad=self.requires_grad,
+            dtype=self.data.dtype,
+            device=self.data.device,
+        )
+
+        # You'll need to create a transpose_backward function
+        result.grad_fn = GradFunction(
+            backward_fn=T_backward,  # Need to implement this
+            input_nodes=[self],
+        )
+
+        return result
+
+    def transpose(self, dim0: int, dim1: int):
+        """
+        Transpose two dimensions (PyTorch-style)
+
+        Args:
+            dim0: First dimension to transpose
+            dim1: Second dimension to transpose
+        """
+        transposed_data = jnp.swapaxes(self.data, dim0, dim1)
+
+        result = Node(
+            data=transposed_data,
+            parents=[self],
+            dtype=self.data.dtype,
+            device=self.data.device,
+            requires_grad=self.requires_grad,
+        )
+
+        if self.requires_grad:
+            result.grad_fn = GradFunction(
+                backward_fn=transpose_backward,
+                input_nodes=[self],
+            )
+
+        return result
+
+    # TODO: Check if this is correct
+    def reshape(self, *shape):
+        """Reshape the node's data while maintaining gradient tracking"""
+        reshaped_data = self.data.reshape(*shape)
+
+        result = Node(
+            data=reshaped_data,
+            parents=[self],
+            dtype=self.data.dtype,
+            device=self.data.device,
+            requires_grad=self.requires_grad,
+        )
+
+        if self.requires_grad:
+            result.grad_fn = GradFunction(
+                backward_fn=reshape_backward,
+                input_nodes=[self],
+            )
+
+        return result
+
+    # TODO: Do we need the alias?
+    def view(self, *shape):
+        """Alias for reshape() - for PyTorch compatibility"""
+        return self.reshape(*shape)
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        """Return the shape of the node's data"""
+        return self.data.shape
+
+    def __getitem__(self, key: Any) -> Node:
+        """Support indexing operations like node[0] or node[1:3]"""
+        result = Node(
+            data=self.data[key],
+            name=f"{self.name}[{key}]" if self.name else None,
+            parents=[self],  # TODO: Make sure this is correct
+            requires_grad=self.requires_grad,  # TODO: Not sure if this is true?
+            dtype=self.data.dtype,
+            device=self.data.device,
+        )
+
+        return result
+
+    def __matmul__(self, other_node: Node) -> Node:
+        if not isinstance(other_node, Node):
+            raise TypeError(
+                f"Unsupported type for matrix multiplication with Node. Can't multiply {type(other_node)} with Node."
+            )
+
+        data: jax.Array = self.data @ other_node.data
+
+        result = Node(
+            data=data,
+            parents=[self, other_node],
+            dtype=data.dtype,
+            device=data.device,
+            requires_grad=self.requires_grad or other_node.requires_grad,
+        )
+
+        result.grad_fn = GradFunction(
+            backward_fn=matmul_backward,  # Need to implement this
+            input_nodes=[self, other_node],
+        )
+
+        return result
 
     def __add__(self, other_node) -> Node:
         if not isinstance(other_node, (int, float, jax.Array, Node)):
@@ -127,6 +247,64 @@ class Node:
 
         return result
 
+    def __truediv__(self, other_node: Node | int | float | jax.Array) -> Node:
+        if not isinstance(other_node, (int, float, jax.Array, Node)):
+            raise TypeError(
+                f"Unsupported type for division with Node. Can't divide Node by {type(other_node)}."
+            )
+
+        if isinstance(other_node, jax.Array):
+            other_node = Node(other_node)
+
+        if isinstance(other_node, (int, float)):
+            other_node = Node(jnp.array(other_node))
+
+        data: jax.Array = self.data / other_node.data
+
+        result = Node(
+            data=data,
+            parents=[self, other_node],
+            dtype=data.dtype,
+            device=data.device,
+            requires_grad=self.requires_grad or other_node.requires_grad,
+        )
+
+        result.grad_fn = GradFunction(
+            backward_fn=div_backward,  # Division can be treated as multiplication by the inverse
+            input_nodes=[self, other_node],
+        )
+
+        return result
+
+    def __rtruediv__(self, other_node: Node | int | float | jax.Array) -> Node:
+        if not isinstance(other_node, (int, float, jax.Array, Node)):
+            raise TypeError(
+                f"Unsupported type for division with Node. Can't divide {type(other_node)} by Node."
+            )
+
+        if isinstance(other_node, jax.Array):
+            other_node = Node(other_node)
+
+        if isinstance(other_node, (int, float)):
+            other_node = Node(jnp.array(other_node))
+
+        data: jax.Array = other_node.data / self.data
+
+        result = Node(
+            data=data,
+            parents=[self, other_node],
+            dtype=data.dtype,
+            device=data.device,
+            requires_grad=self.requires_grad or other_node.requires_grad,
+        )
+
+        result.grad_fn = GradFunction(
+            backward_fn=div_backward,  # Division can be treated as multiplication by the inverse
+            input_nodes=[self, other_node],
+        )
+
+        return result
+
     def __mul__(self, other_node: Node | int | float | jax.Array) -> Node:
         print("__mul__ called")
         if not isinstance(other_node, (int, float, jax.Array, Node)):
@@ -184,6 +362,53 @@ class Node:
             backward_fn=mul_backward,
             input_nodes=[self, other_node],
         )
+
+        return result
+
+    # TODO: Check correctness of this method
+    def softmax(self, dim: int = -1) -> Node:
+        """Apply softmax activation along specified dimension"""
+        return softmax(self, dim)
+
+    def mean(self, axis=None, keepdims=False) -> Node:
+        """Compute mean along specified axis"""
+        mean_data = jnp.mean(self.data, axis=axis, keepdims=keepdims)
+
+        result = Node(
+            data=mean_data,
+            parents=[self],
+            dtype=self.data.dtype,
+            device=self.data.device,
+            requires_grad=self.requires_grad,
+        )
+
+        if self.requires_grad:
+            result.grad_fn = GradFunction(
+                backward_fn=mean_backward,
+                input_nodes=[self],
+            )
+
+        return result
+
+    def std(self, axis=None, keepdims=False) -> Node:
+        """Compute standard deviation along specified axis"""
+        std_data = jnp.std(self.data, axis=axis, keepdims=keepdims)
+
+        result = Node(
+            data=std_data,
+            parents=[self],
+            dtype=self.data.dtype,
+            device=self.data.device,
+            requires_grad=self.requires_grad,
+        )
+
+        if self.requires_grad:
+            from .functions import std_backward
+
+            result.grad_fn = GradFunction(
+                backward_fn=std_backward,
+                input_nodes=[self],
+            )
 
         return result
 
