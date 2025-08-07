@@ -41,8 +41,12 @@ def softmax(x: "Node", dim: int = -1) -> "Node":
     )
 
     if x.requires_grad:
+        # TODO: Improve GradFunction so we don't have to use a lambda function.
+        # Maybe we should use ap artial function? No idea yet.
         result.grad_fn = GradFunction(
-            backward_fn=softmax_backward,
+            backward_fn=lambda grad_output, input_node: softmax_backward(
+                grad_output, input_node, dim
+            ),
             input_nodes=[x],
         )
 

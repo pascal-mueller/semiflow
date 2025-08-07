@@ -66,12 +66,14 @@ class Linear(Module):
         super().__init__()
 
         self.weights: Parameter = Parameter(
-            jnp.ones((out_features, in_features), dtype=dtype)
+            jnp.ones((out_features, in_features), dtype=dtype), name="nn.linear.weights"
         )
 
         self.bias: Parameter | None = None
         if bias:
-            self.bias = Parameter(jnp.zeros((out_features,), dtype=dtype))
+            self.bias = Parameter(
+                jnp.zeros((out_features,), dtype=dtype), name="nn.linear.bias"
+            )
 
     def forward(self, x: Node) -> Node:
         r"""

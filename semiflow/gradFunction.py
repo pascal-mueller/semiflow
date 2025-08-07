@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Callable, List, TYPE_CHECKING
+import jax.numpy as jnp
 
 
 if TYPE_CHECKING:
@@ -17,7 +18,9 @@ class GradFunction:
         self.input_nodes: List[Node] = input_nodes
 
     def __call__(self, *args, **kwargs):
-        return self.backward(*args, **kwargs)
+        result = self.backward(*args, **kwargs)
+
+        return result
 
     def __repr__(self):
         return f"<GradFunction: {self.backward.__name__}>"

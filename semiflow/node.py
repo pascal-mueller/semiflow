@@ -16,9 +16,13 @@ from .functions import (
     reshape_backward,
     mean_backward,
     std_backward,
+    log_backward,
+    sum_backward,
+    sigmoid_backward,
 )
 from .gradFunction import GradFunction
 from semiflow.nn.activation.softmax import softmax
+from semiflow.nn.activation.sigmoid import sigmoid
 
 
 class Node:
@@ -306,7 +310,6 @@ class Node:
         return result
 
     def __mul__(self, other_node: Node | int | float | jax.Array) -> Node:
-        print("__mul__ called")
         if not isinstance(other_node, (int, float, jax.Array, Node)):
             raise TypeError(
                 f"Unsupported type for addition with Node. Can't multiply {type(other_node)} with Node."
@@ -390,6 +393,7 @@ class Node:
 
         return result
 
+    # TODO: Check correctness of this method
     def std(self, axis=None, keepdims=False) -> Node:
         """Compute standard deviation along specified axis"""
         std_data = jnp.std(self.data, axis=axis, keepdims=keepdims)
@@ -403,12 +407,73 @@ class Node:
         )
 
         if self.requires_grad:
-            from .functions import std_backward
-
             result.grad_fn = GradFunction(
                 backward_fn=std_backward,
                 input_nodes=[self],
             )
+
+        return result
+
+    # TODO: Check correctness of this method
+    def log(self) -> Node:
+        """Apply natural logarithm element-wise"""
+        log_data = jnp.log(self.data)
+
+        result = Node(
+            data=log_data,
+            parents=[self],
+            dtype=self.data.dtype,
+            device=self.data.device,
+            requires_grad=self.requires_grad,
+        )
+
+        if self.requires_grad:
+            result.grad_fn = GradFunction(
+                backward_fn=log_backward,
+                input_nodes=[self],
+            )
+
+        return result
+
+    # TODO: Check correctness of this method
+    def sum(self, axis=None, keepdims=False) -> Node:
+        """Sum along specified axis"""
+        sum_data = jnp.sum(self.data, axis=axis, keepdims=keepdims)
+
+        result = Node(
+            data=sum_data,
+            parents=[self],
+            dtype=self.data.dtype,
+            device=self.data.device,
+            requires_grad=self.requires_grad,
+        )
+
+        if self.requires_grad:
+            result.grad_fn = GradFunction(
+                backward_fn=lambda grad_output, input_node: sum_backward(
+                    grad_output, input_node, axis, keepdims
+                ),
+                input_nodes=[self],
+            )
+
+        return result
+
+    def sigmoid(self):
+        """Apply sigmoid activation function."""
+        result = Node(
+            data=sigmoid(self.data),
+            parents=[self],
+            dtype=self.data.dtype,
+            device=self.data.device,
+            requires_grad=self.requires_grad,
+        )
+
+        if self.requires_grad:
+            result.grad_fn = GradFunction(
+                backward_fn=sigmoid_backward,
+                input_nodes=[self],
+            )
+            result.requires_grad = True
 
         return result
 
@@ -453,8 +518,6 @@ class Node:
             # grad_fn is only set for nodes that are a result of an opeartion
             # and e.g. not for the input nodes.
             if node.grad_fn is None or not node.requires_grad:
-                print(node)
-                print(node.grad_fn)
                 continue
 
             # get local gradients
@@ -464,7 +527,7 @@ class Node:
             for parent, grad in zip(node.parents, out_grads):
                 # Initially parent.grads is None.
                 if parent.grads is None:
-                    parent.grads = grad.clone()
+                    parent.grads = grad
                 # Chain rule implies accumulation of gradients.
                 else:
                     parent.grads = parent.grads + grad

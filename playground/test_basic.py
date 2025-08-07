@@ -1,6 +1,5 @@
 from semiflow import Node
 
-
 # y = w * x
 # 4 = w * 2
 # w = 2 <-- wanna find this
